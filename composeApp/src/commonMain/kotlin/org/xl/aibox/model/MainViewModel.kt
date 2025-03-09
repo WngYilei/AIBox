@@ -1,0 +1,52 @@
+package com.xl.composemultiplatformapp.model
+
+
+import com.xl.composemultiplatformapp.data.ChatMessage
+import com.xl.composemultiplatformapp.data.ResponseBean
+
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.replay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.xl.aibox.Platform
+import org.xl.aibox.ai.DeepSeekUtils
+import org.xl.aibox.getPlatform
+
+
+/**
+ * @Author : wyl
+ * @Date : 2023/3/5
+ * Desc :
+ */
+object MainViewModel : ReduxViewModel() {
+    private val platform: Platform = getPlatform()
+
+    fun chat(chatMessages: List<ChatMessage>, onMessageSend: (ChatMessage) -> Unit) {
+        MainScope().launch() {
+            withContext(Dispatchers.IO) {
+                onMessageSend.invoke(ChatMessage("思考中",false))
+                val result = DeepSeekUtils.callWithMessage(chatMessages)
+                try {
+
+                    System.out.println(result.getOutput().getChoices().get(0).getMessage().getReasoningContent());
+                    System.out.println("回复内容：");
+                    System.out.println(result.getOutput().getChoices().get(0).getMessage().getContent());
+
+                    val think = result.getOutput().getChoices().get(0).getMessage().getReasoningContent();
+                    val msg = result.getOutput().getChoices().get(0).getMessage().getContent();
+                    onMessageSend.invoke(ChatMessage("思考:"+think,false))
+                    onMessageSend.invoke(ChatMessage("正文:"+msg,false))
+
+//                    DeepSeekUtils.streamCallWithMessage(result,onMessageSend)
+                } catch (e: Exception) {
+                    onMessageSend.invoke(ChatMessage(e.message.toString(), false))
+                }
+            }
+        }
+    }
+
+}

@@ -29,19 +29,9 @@ object MainViewModel : ReduxViewModel() {
         MainScope().launch() {
             withContext(Dispatchers.IO) {
                 onMessageSend.invoke(ChatMessage("思考中",false))
-                val result = DeepSeekUtils.callWithMessage(chatMessages)
+                val result = DeepSeekUtils.callWithMessageStream(chatMessages)
                 try {
-
-                    System.out.println(result.getOutput().getChoices().get(0).getMessage().getReasoningContent());
-                    System.out.println("回复内容：");
-                    System.out.println(result.getOutput().getChoices().get(0).getMessage().getContent());
-
-                    val think = result.getOutput().getChoices().get(0).getMessage().getReasoningContent();
-                    val msg = result.getOutput().getChoices().get(0).getMessage().getContent();
-                    onMessageSend.invoke(ChatMessage("思考:"+think,false))
-                    onMessageSend.invoke(ChatMessage("正文:"+msg,false))
-
-//                    DeepSeekUtils.streamCallWithMessage(result,onMessageSend)
+                    DeepSeekUtils.streamCallWithMessage(result,onMessageSend)
                 } catch (e: Exception) {
                     onMessageSend.invoke(ChatMessage(e.message.toString(), false))
                 }

@@ -69,14 +69,15 @@ object DeepSeekUtils {
     var isFirstPrint: Boolean = true
 
     private fun handleGenerationResult(message: GenerationResult,onMessageSend: (ChatMessage) -> Unit) {
-        val reasoning = message.output.choices[0].message.reasoningContent
-        val content = message.output.choices[0].message.content
+        var reasoning = message.output.choices[0].message.reasoningContent
+        var content = message.output.choices[0].message.content
 
         if (!reasoning.isEmpty()) {
             reasoningContent.append(reasoning)
             if (isFirstPrint) {
                 println("====================思考过程====================")
                 isFirstPrint = false
+                reasoning = "\n"+reasoning
             }
             onMessageSend.invoke(ChatMessage(reasoning,false))
             print(reasoning)
@@ -87,6 +88,7 @@ object DeepSeekUtils {
             if (!isFirstPrint) {
                 println("\n====================完整回复====================")
                 isFirstPrint = true
+                content = "\n\n" + content
             }
             onMessageSend.invoke(ChatMessage(content,false))
             print(content)

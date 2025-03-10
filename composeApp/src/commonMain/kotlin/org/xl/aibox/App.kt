@@ -1,6 +1,7 @@
 package org.xl.aibox
 
 import CustomTextField
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,22 +23,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.TextFieldDefaults
-import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.platform.LocalFocusManager
+
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.xl.composemultiplatformapp.data.ChatMessage
 import com.xl.composemultiplatformapp.model.MainViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flow
 
 
 @Composable
@@ -151,11 +146,11 @@ fun App() {
                     }
 
                     // Middle content area
-                    var messages by remember { mutableStateOf(listOf(ChatMessage("您好！我是由中国的深度求索（DeepSeek）公司开发的智能助手DeepSeek-R1。如您有任何问题，我会尽我所能为您提供帮助。",false))) }
-
+                    var messages = remember { mutableStateListOf<ChatMessage>() }
+                    val currentDisplayText = remember { mutableStateMapOf<Int, String>() }
                     val listState = rememberLazyListState()
                     val coroutineScope = rememberCoroutineScope()
-
+                    var aiResponse = ""
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -164,24 +159,41 @@ fun App() {
                             .background(Color(0xFFFFE4B5)) // 浅橙色用于中间区域
                             .padding(16.dp)
                     ) {
-                        items(messages) { message ->
-                            ChatMessage(message)
+                        itemsIndexed(messages) { index, message ->
+                            ChatBubble(
+                                message = message,
+                                displayText = currentDisplayText[index] ?: "",
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
                         }
                     }
 
                     // Scroll to the last message when a new message is added
                     LaunchedEffect(messages.size) {
                         coroutineScope.launch {
-                            listState.animateScrollToItem(messages.size - 1)
+                            if (messages.isNotEmpty()) {
+                                listState.animateScrollToItem(messages.size - 1)
+                            }
                         }
                     }
 
                     // Bottom input area
                     BottomInputArea { newMessage ->
-                        messages = messages + newMessage
 
+                        messages.add(newMessage)
+                        currentDisplayText[messages.lastIndex] = newMessage.message
+
+
+                        aiResponse = ""
+                        messages.add(ChatMessage("思考过程", false))
                         MainViewModel.chat(messages) { newMessage ->
-                            messages = messages + newMessage
+                            currentDisplayText[messages.lastIndex] = ""
+                            aiResponse = aiResponse + newMessage.message
+                            coroutineScope.launch {
+                                currentDisplayText[messages.lastIndex] = aiResponse
+                                delay(100)
+                            }
+
                         }
                     }
                 }
@@ -276,6 +288,29 @@ fun ChatMessage(chatMessage: ChatMessage) {
                 text = chatMessage.message,
                 color = Color.Black,
                 textAlign = TextAlign.Start // 始终左对齐
+            )
+        }
+    }
+}
+@Composable
+fun ChatBubble(
+    message: ChatMessage,
+    displayText: String,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        val backgroundColor = if (message.isUser) Color(0xFFC1FFC1) else Color(0xFFB0E0E6)
+        val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
+
+        Box(modifier = Modifier
+                .align(alignment)
+                .background(backgroundColor, RoundedCornerShape(8.dp))
+                .padding(12.dp)
+        ) {
+            Text(
+                text = displayText,
+                color = Color.Black,
+                modifier = Modifier.animateContentSize()
             )
         }
     }

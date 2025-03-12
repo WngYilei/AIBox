@@ -77,9 +77,8 @@ object DeepSeekUtils {
             if (isFirstPrint) {
                 println("====================思考过程====================")
                 isFirstPrint = false
-                reasoning = "\n"+reasoning
             }
-            onMessageSend.invoke(ChatMessage(reasoning,false))
+            onMessageSend.invoke(ChatMessage("",reasoning,false))
             print(reasoning)
         }
 
@@ -88,9 +87,8 @@ object DeepSeekUtils {
             if (!isFirstPrint) {
                 println("\n====================完整回复====================")
                 isFirstPrint = true
-                content = "\n\n" + content
             }
-            onMessageSend.invoke(ChatMessage(content,false))
+            onMessageSend.invoke(ChatMessage(content,"",false))
             print(content)
         }
     }
@@ -102,7 +100,7 @@ object DeepSeekUtils {
                 println("====================思考过程====================")
                 isFirstPrint = false
             }
-            onMessageSend.invoke(ChatMessage(reasoning,false))
+            onMessageSend.invoke(ChatMessage("",reasoning,false))
             print(reasoning)
         }
 
@@ -112,23 +110,19 @@ object DeepSeekUtils {
                 println("\n====================完整回复====================")
                 isFirstPrint = true
             }
-            onMessageSend.invoke(ChatMessage(content,false))
+            onMessageSend.invoke(ChatMessage(content,"",false))
             print(content)
         }
     }
 
 
     suspend fun tett(onMessageSend: (ChatMessage) -> Unit){
-        repeat(3) {
-            handleGenerationResultTest(
-                "思考中思考中" + System.currentTimeMillis().toString(),
-                "这是回复这是回复" + System.currentTimeMillis().toString(),
-
-                onMessageSend
-
-            )
-            delay(500)
-        }
+        delay(1000*2)
+        handleGenerationResultTest(
+            "思考中思考中" + System.currentTimeMillis().toString(),
+            "这是回复这是回复" + System.currentTimeMillis().toString(),
+            onMessageSend
+        )
 
     }
 }

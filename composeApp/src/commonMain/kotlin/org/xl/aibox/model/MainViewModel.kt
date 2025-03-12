@@ -2,8 +2,6 @@ package com.xl.composemultiplatformapp.model
 
 
 import com.xl.composemultiplatformapp.data.ChatMessage
-import com.xl.composemultiplatformapp.data.ResponseBean
-
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.Dispatchers
@@ -28,13 +26,22 @@ object MainViewModel : ReduxViewModel() {
     fun chat(chatMessages: List<ChatMessage>, onMessageSend: (ChatMessage) -> Unit) {
         MainScope().launch() {
             withContext(Dispatchers.IO) {
-                onMessageSend.invoke(ChatMessage("思考中",false))
                 val result = DeepSeekUtils.callWithMessageStream(chatMessages)
                 try {
                     DeepSeekUtils.streamCallWithMessage(result,onMessageSend)
                 } catch (e: Exception) {
-                    onMessageSend.invoke(ChatMessage(e.message.toString(), false))
+                    onMessageSend.invoke(ChatMessage(e.message.toString(), "",false))
                 }
+            }
+        }
+    }
+
+
+    fun chatTest(chatMessages: List<ChatMessage>, onMessageSend: (ChatMessage) -> Unit) {
+        MainScope().launch() {
+            withContext(Dispatchers.IO) {
+
+                 DeepSeekUtils.tett(onMessageSend)
             }
         }
     }

@@ -5,11 +5,6 @@ import kotlinx.serialization.*
  * @Date : 2023/2/18
  * Desc :
  */
-@Serializable
-data class ResponseBean(
-    val `data`: String,
-    val errorCode: Int,
-    val errorMsg: String
-)
 
-data class ChatMessage(var message: String, val isUser: Boolean)
+
+data class ChatMessage(var message: String, var thinkMessage: String ="", val isUser: Boolean)

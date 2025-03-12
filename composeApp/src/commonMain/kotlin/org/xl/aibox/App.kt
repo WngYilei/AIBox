@@ -1,8 +1,9 @@
 package org.xl.aibox
 
 import CustomTextField
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,10 +30,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontStyle
 import com.xl.composemultiplatformapp.data.ChatMessage
 import com.xl.composemultiplatformapp.model.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.cos
+import kotlin.math.sin
 
 
 @Composable
@@ -131,26 +140,48 @@ fun App() {
 
                 // Main content area
                 Column(modifier = Modifier.fillMaxSize()) {
+
+                    var messages = remember { mutableStateListOf<ChatMessage>() }
+                    val currentDisplayText = remember { mutableStateMapOf<Int, String>() }
+                    val currentThinkText = remember { mutableStateMapOf<Int, String>() }
+                    val currentLoading = remember { mutableStateMapOf<Int, Boolean>() }
+                    val listState = rememberLazyListState()
+                    val coroutineScope = rememberCoroutineScope()
+                    var aiResponse = ""
+                    var aiThinkMsg =""
+
                     // Top title bar
                     TopAppBar(
                         backgroundColor = Color(0xFFC1FFC1), // 紫色用于顶部
                         elevation = 0.dp
                     ) {
                         Text(
-                            text = "我是 DeepSeek，很高兴见到你！",
+                            text = "我是 AI盒子，很高兴见到你！",
                             color = Color.Black,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
+                        // 添加清除按钮
+                        Spacer(modifier = Modifier.weight(1f)) // 将按钮推到右侧
+                        IconButton(
+                            onClick = {
+                                messages.clear()
+                                currentDisplayText.clear()
+                                currentThinkText.clear()
+                                currentLoading.clear()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "清除",
+                                tint = Color.Black
+
+                            )
+                        }
                     }
 
-                    // Middle content area
-                    var messages = remember { mutableStateListOf<ChatMessage>() }
-                    val currentDisplayText = remember { mutableStateMapOf<Int, String>() }
-                    val listState = rememberLazyListState()
-                    val coroutineScope = rememberCoroutineScope()
-                    var aiResponse = ""
+
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -163,6 +194,8 @@ fun App() {
                             ChatBubble(
                                 message = message,
                                 displayText = currentDisplayText[index] ?: "",
+                                thinkMsg = currentThinkText[index]?:"",
+                                isLoading = currentLoading[index]?:false,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -179,18 +212,24 @@ fun App() {
 
                     // Bottom input area
                     BottomInputArea { newMessage ->
-
                         messages.add(newMessage)
                         currentDisplayText[messages.lastIndex] = newMessage.message
 
-
                         aiResponse = ""
-                        messages.add(ChatMessage("思考过程", false))
+                        aiThinkMsg =""
+                        messages.add(ChatMessage("思考过程","", false))
+                        currentLoading[messages.lastIndex] = true
                         MainViewModel.chat(messages) { newMessage ->
+                            currentLoading[messages.lastIndex] = false
                             currentDisplayText[messages.lastIndex] = ""
+                            currentThinkText[messages.lastIndex] = ""
+
                             aiResponse = aiResponse + newMessage.message
+                            aiThinkMsg = aiThinkMsg +newMessage.thinkMessage
+
                             coroutineScope.launch {
                                 currentDisplayText[messages.lastIndex] = aiResponse
+                                currentThinkText[messages.lastIndex] = aiThinkMsg
                                 delay(100)
                             }
 
@@ -243,7 +282,7 @@ fun BottomInputArea(onMessageSend: (ChatMessage) -> Unit) {
                 },
                 onEnterClick = {
                     if (textValue.isNotBlank()) {
-                        onMessageSend(ChatMessage(textValue, true))
+                        onMessageSend(ChatMessage(textValue, "",true))
                         textValue = ""
                     }
                 },
@@ -253,7 +292,7 @@ fun BottomInputArea(onMessageSend: (ChatMessage) -> Unit) {
             IconButton(
                 onClick = {
                     if (textValue.isNotBlank()) {
-                        onMessageSend(ChatMessage(textValue, false))
+                        onMessageSend(ChatMessage(textValue, "",false))
                         textValue = ""
                     }
                 }
@@ -268,34 +307,13 @@ fun BottomInputArea(onMessageSend: (ChatMessage) -> Unit) {
     }
 }
 
-@Composable
-fun ChatMessage(chatMessage: ChatMessage) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (chatMessage.isUser) Arrangement.End else Arrangement.Start
-    ) {
-        Box(
-            modifier = Modifier
-                .wrapContentWidth(align = if (chatMessage.isUser) Alignment.End else Alignment.Start)
-                .padding(vertical = 4.dp)
-                .background(
-                    color = if (chatMessage.isUser) Color(0xFFC1FFC1) else Color(0xFFB0E0E6),
-                    shape = RoundedCornerShape(8.dp)
-                ).padding(16.dp),
-            contentAlignment = Alignment.CenterStart // 始终左对齐，因为Box的对齐由Row控制
-        ) {
-            Text(
-                text = chatMessage.message,
-                color = Color.Black,
-                textAlign = TextAlign.Start // 始终左对齐
-            )
-        }
-    }
-}
+
 @Composable
 fun ChatBubble(
     message: ChatMessage,
     displayText: String,
+    thinkMsg:String ="",
+    isLoading:Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -306,12 +324,107 @@ fun ChatBubble(
                 .align(alignment)
                 .background(backgroundColor, RoundedCornerShape(8.dp))
                 .padding(12.dp)
-        ) {
-            Text(
-                text = displayText,
-                color = Color.Black,
-                modifier = Modifier.animateContentSize()
-            )
-        }
+            ) {
+            Column {
+                if (isLoading && !message.isUser) {
+                    AnimatedVisibility(
+                        visible = isLoading,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        // 使用 Row 组件实现左右分布
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            // 显示“思考中”字样
+                            Text(
+                                text = "思考中",
+                                color = Color.Gray,
+                                fontStyle = FontStyle.Italic,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            // 显示两个小球旋转动画
+                            TwoBallsSpinningAnimation(
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                } else {
+                    if (thinkMsg.isNotEmpty()) {
+                        Text(
+                            text = thinkMsg,
+                            color = Color.Gray,
+                            fontStyle = FontStyle.Italic,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    Text(
+                        text = displayText,
+                        color = Color.Black,
+                        modifier = Modifier.animateContentSize()
+                    )
+                }
+
+
+
+                }
+            }
+    }
+}
+
+
+@Composable
+fun TwoBallsSpinningAnimation(
+    modifier: Modifier = Modifier
+) {
+    // 定义无限循环的动画过渡
+    val infiniteTransition = rememberInfiniteTransition()
+    // 定义旋转角度的动画
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 2000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    Canvas(
+        modifier = modifier
+            .size(100.dp)
+    ) {
+        val radius = size.minDimension / 4
+        val center = Offset(size.width / 2, size.height / 2)
+
+        // 计算两个小球的位置，修改为左右旋转
+        val ball1Offset = Offset(
+            x = center.x + (radius * cos(Math.toRadians(rotationAngle.toDouble()))).toFloat(),
+            y = center.y // y 坐标保持不变
+        )
+        val ball2Offset = Offset(
+            x = center.x + (radius * cos(Math.toRadians((rotationAngle + 180).toDouble()))).toFloat(),
+            y = center.y // y 坐标保持不变
+        )
+
+        // 绘制第一个小球
+        drawCircle(
+            color = Color.Blue,
+            radius = radius,
+            center = ball1Offset
+        )
+        // 绘制第二个小球
+        drawCircle(
+            color = Color.Red,
+            radius = radius,
+            center = ball2Offset
+        )
     }
 }
